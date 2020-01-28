@@ -39,6 +39,7 @@ SaveComicAndCaption () {
 
       local fullpath="${path}/$outfn"
 
+      ## Save caption if there is one
       if [[ $section =~ $regexCaption ]]
       then
          echo "Match caption :)"
@@ -47,12 +48,26 @@ SaveComicAndCaption () {
          local caption=${BASH_REMATCH[1]}
          section=${section##*${BASH_REMATCH[1]}}
 
-         curl -T "$fullpath" "ftp://$ftpurl/a.orians/farside/" --user $ftpusername:$ftppassword --retry 10 --retry-delay 5
-
          echo "$caption" > "$outcap"
       else
          echo "No match caption :("
       fi
+
+      # Upload the file via FTP
+      for I in 1 2 3
+      do
+         curl -T "$fullpath" "ftp://$ftpurl" --user $ftpusername:$ftppassword --retry 10 --retry-delay 5
+         sleep 10
+
+         local uploadres=`curl -I http://$ftpurl/$outfn`
+
+         if [[ $uploadres == *"200 OK"* ]]; then
+            echo "File is there :)"
+            break;
+         else
+            echo "File is not there :("
+         fi
+      done
    fi
 }
 
@@ -76,7 +91,7 @@ if [ -n "$file" ]; then
       SaveComicAndCaption "$line" $count
       count=$((count+1))
 
-      if [ $count -gt -lt 10 ]; then
+      if [ $count -gt 10 ]; then
          echo "More comics than expected; exiting"
          exit 1
       fi
